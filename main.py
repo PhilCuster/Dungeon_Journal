@@ -47,9 +47,18 @@ class newTemplate(QWidget):
     def addField(self):
         # Get text from field.
         text = self.ui.fieldToAdd.text()
+        # Check which radio button is selected.
+        isItText = False
+        if self.ui.textButton.isChecked():
+            isItText = True
         # As long as it is not blank, add it to the list and clear the field.
-        if text != "":
-            self.ui.fieldList.addItem(QListWidgetItem(self.ui.fieldToAdd.text(), self.ui.fieldList))
+        if text != "" and (self.ui.textButton.isChecked() or self.ui.intButton.isChecked()):
+            text_to_add = self.ui.fieldToAdd.text()
+            if isItText:
+                text_to_add += " (text)"
+            else:
+                text_to_add += " (integer)"
+            self.ui.fieldList.addItem(QListWidgetItem(text_to_add, self.ui.fieldList))
             self.ui.fieldToAdd.clear()
 
     def createTemplate(self):
@@ -58,15 +67,16 @@ class newTemplate(QWidget):
         fields = []
         for i in range(self.ui.fieldList.count()):
             fields.append(self.ui.fieldList.item(i).text())
-        filename = "templates/" + templateName + "_" + gameSystem + ".csv"
-        with open(filename, "w") as f:
-            f.write(templateName + ",\n")
-            f.write(gameSystem + ",\n")
-            for entry in fields:
-                f.write(entry + ",\n")
-        self.ui.templateName.clear()
-        self.ui.gameSystem.clear()
-        self.ui.fieldList.clear()
+        if templateName != "" and gameSystem != "" and len(fields) != 0:
+            filename = "templates/" + templateName + "_" + gameSystem + ".csv"
+            with open(filename, "w") as f:
+                f.write(templateName + ",\n")
+                f.write(gameSystem + ",\n")
+                for entry in fields:
+                    f.write(entry + ",\n")
+            self.ui.templateName.clear()
+            self.ui.gameSystem.clear()
+            self.ui.fieldList.clear()
 
 
 if __name__ == '__main__':
