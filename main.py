@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import *
 from mainWindow import Ui_MainWindow
 from newTemplate import Ui_newTemplate
+from editLibrary import Ui_editLibrary
 from PyQt5 import uic
 import sys
 
@@ -17,6 +18,7 @@ class MainWindow(QMainWindow):
 
         self.ui.quitButton.clicked.connect(self.close)
         self.ui.createTemplateButton.clicked.connect(self.createNewTemplate)
+        self.ui.editLibraryButton.clicked.connect(self.openEditLibrary)
         self.w = None
 
     # Create the widget to make a new template.  Hide the main window and pass a reference of itself to the
@@ -24,6 +26,11 @@ class MainWindow(QMainWindow):
     def createNewTemplate(self):
         self.hide()
         self.w = newTemplate(self)
+        self.w.show()
+
+    def openEditLibrary(self):
+        self.hide()
+        self.w = editLibrary(self)
         self.w.show()
 
 
@@ -77,6 +84,21 @@ class newTemplate(QWidget):
             self.ui.templateName.clear()
             self.ui.gameSystem.clear()
             self.ui.fieldList.clear()
+
+
+class editLibrary(QWidget):
+    def __init__(self, mainW):
+        super(editLibrary, self).__init__()
+
+        self.ui = Ui_editLibrary()
+        self.ui.setupUi(self)
+        self.mainW = mainW
+
+        self.ui.returnButton.clicked.connect(self.returnToMain)
+
+    def returnToMain(self):
+        self.close()
+        self.mainW.show()
 
 
 if __name__ == '__main__':
