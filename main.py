@@ -2,7 +2,9 @@ from PyQt5.QtWidgets import *
 from mainWindow import Ui_MainWindow
 from newTemplate import Ui_newTemplate
 from editLibrary import Ui_editLibrary
+from selectTemplate import Ui_selectTemplate
 from PyQt5 import uic
+import os
 import sys
 
 def compileUIC():
@@ -94,12 +96,50 @@ class editLibrary(QWidget):
         self.ui.setupUi(self)
         self.mainW = mainW
 
+        self.d = None
+        self.selectedTemplate = None
+
         self.ui.returnButton.clicked.connect(self.returnToMain)
+        self.ui.selectTemplateButton.clicked.connect(self.selectTemplateWindow)
 
     def returnToMain(self):
         self.close()
         self.mainW.show()
 
+    def selectTemplateWindow(self):
+        self.d = selectTemplate(self)
+        self.d.show()
+
+    def changeLibrary(self, library):
+        self.ui.currentLIbrary.setText(library)
+
+
+class selectTemplate(QWidget):
+    def __init__(self, ref):
+        super(selectTemplate, self).__init__()
+
+        self.ui = Ui_selectTemplate()
+        self.ui.setupUi(self)
+        self.ref = ref
+
+        self.ui.cancelButton.clicked.connect(self.cancel)
+        self.ui.okayButton.clicked.connect(self.submit)
+
+        # Scan template directory for list of templates.
+        for file in os.listdir("templates"):
+            if file.endswith(".csv"):
+                file = file[:-4]
+                self.ui.listWidget.addItem(QListWidgetItem(file, self.ui.listWidget))
+
+
+    def cancel(self):
+        self.close()
+
+    def submit(self):
+        # Code to be added here...
+        if not len(self.ui.listWidget.selectedItems()) == 0:
+            self.ref.changeLibrary(self.ui.listWidget.selectedItems()[0].text())
+            self.close()
 
 if __name__ == '__main__':
     compileUIC()
