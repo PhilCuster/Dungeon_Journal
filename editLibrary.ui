@@ -6,12 +6,12 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>494</width>
-    <height>418</height>
+    <width>800</width>
+    <height>435</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string>Edit Library</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -45,6 +45,9 @@
         </widget>
        </item>
       </layout>
+     </item>
+     <item>
+      <widget class="QTableWidget" name="tableWidget"/>
      </item>
      <item>
       <widget class="QPushButton" name="selectTemplateButton">

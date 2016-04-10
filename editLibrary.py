@@ -11,7 +11,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_editLibrary(object):
     def setupUi(self, editLibrary):
         editLibrary.setObjectName("editLibrary")
-        editLibrary.resize(494, 418)
+        editLibrary.resize(800, 435)
         self.verticalLayout = QtWidgets.QVBoxLayout(editLibrary)
         self.verticalLayout.setObjectName("verticalLayout")
         self.verticalLayout_2 = QtWidgets.QVBoxLayout()
@@ -33,6 +33,11 @@ class Ui_editLibrary(object):
         self.currentLIbrary.setObjectName("currentLIbrary")
         self.horizontalLayout.addWidget(self.currentLIbrary)
         self.verticalLayout_2.addLayout(self.horizontalLayout)
+        self.tableWidget = QtWidgets.QTableWidget(editLibrary)
+        self.tableWidget.setObjectName("tableWidget")
+        self.tableWidget.setColumnCount(0)
+        self.tableWidget.setRowCount(0)
+        self.verticalLayout_2.addWidget(self.tableWidget)
         self.selectTemplateButton = QtWidgets.QPushButton(editLibrary)
         self.selectTemplateButton.setObjectName("selectTemplateButton")
         self.verticalLayout_2.addWidget(self.selectTemplateButton)
@@ -46,7 +51,7 @@ class Ui_editLibrary(object):
 
     def retranslateUi(self, editLibrary):
         _translate = QtCore.QCoreApplication.translate
-        editLibrary.setWindowTitle(_translate("editLibrary", "Form"))
+        editLibrary.setWindowTitle(_translate("editLibrary", "Edit Library"))
         self.label.setText(_translate("editLibrary", "Selected Template/Library:"))
         self.currentLIbrary.setText(_translate("editLibrary", "None"))
         self.selectTemplateButton.setText(_translate("editLibrary", "Select Library/Template"))

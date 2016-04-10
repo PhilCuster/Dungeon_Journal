@@ -6,9 +6,27 @@ from selectTemplate import Ui_selectTemplate
 from PyQt5 import uic
 import os
 import sys
+import sqlite3
 
 def compileUIC():
     uic.compileUiDir('./')
+
+def setupDirs():
+    if not os.path.exists("libraries"):
+        os.makedirs("libraries")
+
+    if not os.path.exists("templates"):
+        os.makedirs("templates")
+
+def cleanse(text):
+    return ''.join( c for c in text if c.isalnum())
+
+def getColumn(lst, x):
+    i = 0
+    for item in lst:
+        if item == x:
+            return i
+        i += 1
 
 
 class MainWindow(QMainWindow):
@@ -112,6 +130,73 @@ class editLibrary(QWidget):
 
     def changeLibrary(self, library):
         self.ui.currentLIbrary.setText(library)
+        self.selectedTemplate = library
+        self.importTemplate()
+
+    def importTemplate(self):
+        fields = {}
+        field_list = []
+        table_columns = []
+
+        with open('templates/' + self.selectedTemplate + '.csv', 'r') as file:
+            count = 1
+            for line in file:
+                line = line.rstrip('\n')
+                if count < 3:
+                    count += 1
+                else:
+                    if line.endswith("(text),"):
+                        fields[line[:-8]] = line[-6:-2]
+                        field_list.append(line[:-8])
+                    else:
+                        fields[line[:-11]] = line[-9:-2]
+                        field_list.append(line[:-11])
+                    count += 1
+
+        self.ui.tableWidget.setColumnCount(len(fields))
+        self.ui.tableWidget.setRowCount(1)
+
+        i = 0
+        for item in field_list:
+            self.ui.tableWidget.setItem(0, i, QTableWidgetItem(item))
+            i += 1
+
+        conn = sqlite3.connect('libraries/' + self.selectedTemplate + '.db')
+        table_name = cleanse(self.selectedTemplate)
+        c = conn.cursor()
+        c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name=?''', (cleanse(self.selectedTemplate),))
+        if c.fetchone() is None:
+            count = 0
+            for key in fields:
+                if count == 0:
+                    if fields[key] == "real":
+                        query = "CREATE TABLE " + table_name + " (" + cleanse(key) + " INTEGER)"
+                    else:
+                        query = "CREATE TABLE " + table_name + " (" + cleanse(key) + " TEXT)"
+                    c.execute(query)
+                    count += 1
+                else:
+                    query = "ALTER TABLE " + table_name + " ADD COLUMN " + \
+                            cleanse(key) + " " + fields[key]
+                    c.execute(query)
+                    count += 1
+
+        c.execute('''PRAGMA TABLE_INFO(''' + table_name + ''')''')
+        for item in c:
+            table_columns.append(item[1])
+
+        row_count = 1
+        for row in c.execute('''SELECT * FROM ''' + table_name):
+            i = 0
+            self.ui.tableWidget.setRowCount(row_count + 1)
+            for item in row:
+                self.ui.tableWidget.setItem(row_count, getColumn(field_list,
+                                                                 table_columns[i]), QTableWidgetItem(str(item)))
+                i += 1
+            row_count += 1
+
+        conn.commit()
+        conn.close()
 
 
 class selectTemplate(QWidget):
@@ -143,6 +228,7 @@ class selectTemplate(QWidget):
 
 if __name__ == '__main__':
     compileUIC()
+    setupDirs()
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
