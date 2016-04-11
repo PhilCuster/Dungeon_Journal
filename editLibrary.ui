@@ -20,6 +20,12 @@
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
         <widget class="QLabel" name="label">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="font">
           <font>
            <pointsize>12</pointsize>
@@ -44,15 +50,29 @@
          </property>
         </widget>
        </item>
+       <item>
+        <widget class="QPushButton" name="selectTemplateButton">
+         <property name="text">
+          <string>Select Library/Template</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item>
       <widget class="QTableWidget" name="tableWidget"/>
      </item>
      <item>
-      <widget class="QPushButton" name="selectTemplateButton">
+      <widget class="QPushButton" name="addButton">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
        <property name="text">
-        <string>Select Library/Template</string>
+        <string>Add Entry</string>
        </property>
       </widget>
      </item>
