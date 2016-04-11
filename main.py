@@ -245,6 +245,7 @@ class editLibrary(QWidget):
 
 
     def refresh(self, newEntry):
+        self.ui.tableWidget.setSortingEnabled(False)
         row_count = self.ui.tableWidget.rowCount() + 1
         self.ui.tableWidget.setRowCount(row_count)
         i = 0
