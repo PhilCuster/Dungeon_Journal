@@ -25,7 +25,7 @@ class Ui_editLibrary(object):
         sizePolicy.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
         self.label.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
-        font.setPointSize(12)
+        font.setPointSize(10)
         font.setBold(True)
         font.setWeight(75)
         self.label.setFont(font)
@@ -33,7 +33,7 @@ class Ui_editLibrary(object):
         self.horizontalLayout.addWidget(self.label)
         self.currentLIbrary = QtWidgets.QLabel(editLibrary)
         font = QtGui.QFont()
-        font.setPointSize(12)
+        font.setPointSize(10)
         self.currentLIbrary.setFont(font)
         self.currentLIbrary.setObjectName("currentLIbrary")
         self.horizontalLayout.addWidget(self.currentLIbrary)
@@ -65,7 +65,7 @@ class Ui_editLibrary(object):
     def retranslateUi(self, editLibrary):
         _translate = QtCore.QCoreApplication.translate
         editLibrary.setWindowTitle(_translate("editLibrary", "Edit Library"))
-        self.label.setText(_translate("editLibrary", "Selected Template/Library:"))
+        self.label.setText(_translate("editLibrary", "Selected Library:"))
         self.currentLIbrary.setText(_translate("editLibrary", "None"))
         self.selectTemplateButton.setText(_translate("editLibrary", "Select Library/Template"))
         self.addButton.setText(_translate("editLibrary", "Add Entry"))

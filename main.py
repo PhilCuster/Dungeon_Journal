@@ -1,4 +1,5 @@
 from PyQt5.QtWidgets import *
+from PyQt5.QtCore import Qt, QVariant
 from mainWindow import Ui_MainWindow
 from newTemplate import Ui_newTemplate
 from editLibrary import Ui_editLibrary
@@ -114,7 +115,28 @@ class newTemplate(QWidget):
             self.ui.fieldList.clear()
 
 
+class NumericTableWidgetItem(QTableWidgetItem):
+    def __lt__(self, other):
+        if isinstance(other, QTableWidgetItem):
+            my_value = self.data(Qt.EditRole)
+            other_value = other.data(Qt.EditRole)
+
+            if my_value and other_value:
+                return my_value < other_value
+
+        return super(NumericTableWidgetItem, self).__lt__(other)
+
+
 class editLibrary(QWidget):
+
+    # To Do:
+    # 1. When creating a new entry check to make sure an entry with that name does not already exists,
+    #    as the name is the unique identifier.
+    #
+    # 2. Allow a user to edit an attribute for an individual field.
+    #
+    # 3. Allow a user to delete an entry.
+
     def __init__(self, mainW):
         super(editLibrary, self).__init__()
 
@@ -127,6 +149,8 @@ class editLibrary(QWidget):
         self.field_list = []
         self.fields = {}
         self.table_columns = []
+
+        self.ui.tableWidget.setSortingEnabled(True)
 
         self.ui.returnButton.clicked.connect(self.returnToMain)
         self.ui.selectTemplateButton.clicked.connect(self.selectTemplateWindow)
@@ -151,6 +175,8 @@ class editLibrary(QWidget):
         self.importTemplate()
 
     def importTemplate(self):
+
+        self.field_list = []
 
         with open('templates/' + self.selectedTemplate + '.csv', 'r') as file:
             count = 1
@@ -204,51 +230,34 @@ class editLibrary(QWidget):
             i = 0
             self.ui.tableWidget.setRowCount(row_count + 1)
             for item in row:
-                self.ui.tableWidget.setItem(row_count, getColumn(self.field_list,
-                                                                 self.table_columns[i]), QTableWidgetItem(str(item)))
-                i += 1
-            row_count += 1
-
-        conn.commit()
-        conn.close()
-
-    def refresh(self):
-        conn = sqlite3.connect('libraries/' + self.selectedTemplate + '.db')
-        table_name = cleanse(self.selectedTemplate)
-        c = conn.cursor()
-        c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name=?''', (cleanse(self.selectedTemplate),))
-        if c.fetchone() is None:
-            count = 0
-            for key in self.fields:
-                if count == 0:
-                    if self.fields[key] == "real":
-                        query = "CREATE TABLE " + table_name + " (" + cleanse(key) + " INTEGER)"
-                    else:
-                        query = "CREATE TABLE " + table_name + " (" + cleanse(key) + " TEXT)"
-                    c.execute(query)
-                    count += 1
+                if self.fields[self.table_columns[i]] == "integer":
+                    newItem = NumericTableWidgetItem()
+                    newItem.setData(Qt.EditRole, QVariant(item))
                 else:
-                    query = "ALTER TABLE " + table_name + " ADD COLUMN " + \
-                            cleanse(key) + " " + self.fields[key]
-                    c.execute(query)
-                    count += 1
-
-        c.execute('''PRAGMA TABLE_INFO(''' + table_name + ''')''')
-        for item in c:
-            self.table_columns.append(item[1])
-
-        row_count = 1
-        for row in c.execute('''SELECT * FROM ''' + table_name):
-            i = 0
-            self.ui.tableWidget.setRowCount(row_count + 1)
-            for item in row:
-                self.ui.tableWidget.setItem(row_count, getColumn(self.field_list,
-                                                                 self.table_columns[i]), QTableWidgetItem(str(item)))
+                    newItem = QTableWidgetItem()
+                    newItem.setData(Qt.EditRole, QVariant(item))
+                self.ui.tableWidget.setItem(row_count, getColumn(self.field_list, self.table_columns[i]), newItem)
                 i += 1
             row_count += 1
 
         conn.commit()
         conn.close()
+
+
+    def refresh(self, newEntry):
+        row_count = self.ui.tableWidget.rowCount() + 1
+        self.ui.tableWidget.setRowCount(row_count)
+        i = 0
+        for field in self.field_list:
+            if self.fields[field] == "integer":
+                newItem = NumericTableWidgetItem()
+                newItem.setData(Qt.EditRole, QVariant(int(newEntry[field])))
+            else:
+                newItem = QTableWidgetItem()
+                newItem.setData(Qt.EditRole, QVariant(str(newEntry[field])))
+            self.ui.tableWidget.setItem(row_count-1, i, newItem)
+            i += 1
+        self.ui.tableWidget.setSortingEnabled(True)
 
 
 class selectTemplate(QWidget):
@@ -331,7 +340,7 @@ class newEntry(QWidget):
 
         conn.commit()
         conn.close()
-        self.ref.refresh()
+        self.ref.refresh(submitDict)
         self.close()
 
 if __name__ == '__main__':
