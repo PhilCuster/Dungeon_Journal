@@ -172,7 +172,7 @@ class editLibrary(QWidget):
 
         i = 0
         for item in self.field_list:
-            self.ui.tableWidget.setItem(0, i, QTableWidgetItem(item))
+            self.ui.tableWidget.setHorizontalHeaderItem(i, QTableWidgetItem(item))
             i += 1
 
         conn = sqlite3.connect('libraries/' + self.selectedTemplate + '.db')
@@ -199,7 +199,7 @@ class editLibrary(QWidget):
         for item in c:
             self.table_columns.append(item[1])
 
-        row_count = 1
+        row_count = 0
         for row in c.execute('''SELECT * FROM ''' + table_name):
             i = 0
             self.ui.tableWidget.setRowCount(row_count + 1)
