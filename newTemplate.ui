@@ -80,7 +80,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Fields to be included in template:</string>
+      <string>Fields to be included in template (The first field will be a unique identifier):</string>
      </property>
     </widget>
    </item>

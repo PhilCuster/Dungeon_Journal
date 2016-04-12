@@ -10,10 +10,13 @@ from playMenu import Ui_playMenu
 from newEntry import Ui_newEntry
 from newGroup import Ui_newGroup
 from addEncounter import Ui_addEncounter
+from activeEncounter import Ui_activeEncounter
+from LibraryDef import *
 from PyQt5 import uic
 import os
 import sys
 import sqlite3
+import re
 
 def compileUIC():
     uic.compileUiDir('./')
@@ -119,9 +122,6 @@ def populateTable(table, selectedTemplate, editable):
                 newItem = QTableWidgetItem()
                 newItem.setData(Qt.EditRole, QVariant(item))
             if not editable:
-                print("Not Editable:")
-                print(newItem.flags())
-                print(Qt.ItemIsEditable)
                 newItem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             table.setItem(row_count, getColumn(field_list, table_columns[i]), newItem)
             i += 1
@@ -129,6 +129,8 @@ def populateTable(table, selectedTemplate, editable):
 
     conn.commit()
     conn.close()
+
+    return LibraryDef(fields, field_list, table_columns)
 
 
 class MainWindow(QMainWindow):
@@ -185,7 +187,7 @@ class playMenu(QWidget):
 
     def selectGroup(self):
         filename = QFileDialog.getOpenFileName(self, "Select Group", 'groups', '*.group')
-        if filename:
+        if filename[0]:
             self.openGroup(filename[0])
 
     def openGroup(self, filename):
@@ -216,7 +218,7 @@ class newGroup(QWidget):
             return
         filename = 'groups/' + self.ui.nameEdit.text() + ".group"
         with open(filename, 'w') as file:
-            file.write("library:" + self.ui.librarySelector.currentText())
+            file.write("library:" + self.ui.librarySelector.currentText() + '\n\n')
 
         self.ref.openGroup(filename)
         self.close()
@@ -224,6 +226,67 @@ class newGroup(QWidget):
     def cancel(self):
         self.close()
         self.ref.show()
+
+
+def getLibraryInfo(libraryName):
+    field_list = []
+    fields = {}
+    table_columns = []
+
+    # From the template file determine what fields will be on the table.
+    with open('templates/' + libraryName + '.csv', 'r') as file:
+        count = 1
+        for line in file:
+            line = line.rstrip('\n')
+            if count < 3:
+                count += 1
+            else:
+                if line.endswith("(text),"):
+                    fields[line[:-8]] = line[-6:-2]
+                    field_list.append(line[:-8])
+                else:
+                    fields[line[:-11]] = line[-9:-2]
+                    field_list.append(line[:-11])
+                count += 1
+
+
+    # Connect to the database to read the library.
+    conn = sqlite3.connect('libraries/' + libraryName + '.db')
+    table_name = cleanse(libraryName)
+    c = conn.cursor()
+
+    # If the table does not exist then create it.
+    c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name=?''', (cleanse(libraryName),))
+    if c.fetchone() is None:
+        count = 0
+        for key in fields:
+            if count == 0:
+                if fields[key] == "real":
+                    query = "CREATE TABLE " + table_name + " (" + cleanse(key) + " INTEGER)"
+                else:
+                    query = "CREATE TABLE " + table_name + " (" + cleanse(key) + " TEXT)"
+                c.execute(query)
+                count += 1
+            else:
+                query = "ALTER TABLE " + table_name + " ADD COLUMN " + \
+                        cleanse(key) + " " + fields[key]
+                c.execute(query)
+                count += 1
+
+    # Fill a list with the names of the table columns.
+    c.execute('''PRAGMA TABLE_INFO(''' + table_name + ''')''')
+    for item in c:
+        table_columns.append(item[1])
+
+    # Fill a list with the names of the table columns.
+    c.execute('''PRAGMA TABLE_INFO(''' + table_name + ''')''')
+    for item in c:
+        table_columns.append(item[1])
+
+    conn.commit()
+    conn.close()
+
+    return LibraryDef(fields, field_list, table_columns)
 
 
 class activeGroup(QWidget):
@@ -235,9 +298,12 @@ class activeGroup(QWidget):
         self.ref = ref
         self.filename = filename
         self.w = None
+        self.encounter_list = []
 
         self.ui.exitButton.clicked.connect(self.cancel)
         self.ui.addEncounterButton.clicked.connect(self.addEncounterWindow)
+        self.ui.openEncounterButton.clicked.connect(self.activeEncounterWindow)
+        self.ui.editLibraryButton.clicked.connect(self.editLibraryWindow)
 
         self.groupName = filename.split('/')[-1]
         # Trim off file extension
@@ -246,38 +312,132 @@ class activeGroup(QWidget):
         self.ui.groupLabel.setText(self.groupName)
         self.setWindowTitle(self.groupName)
         self.libraryName = ""
-        # Parse Library name from file.
+        # Parse Library name and encounters from file.
         with open(filename, 'r') as file:
             for line in file:
                 if line.startswith("library:"):
                     self.libraryName = line.split(":")[1]
+                    self.libraryName = self.libraryName.rstrip('\n')
                     self.ui.libraryLabel.setText(self.libraryName)
+                if line.startswith("encounter:"):
+                    line = line.split(':')
+                    line.pop(0)
+                    line = "".join(line)
+                    line = line.rstrip('\n')
+                    self.ui.encounterList.addItem(QListWidgetItem(line))
+
+        self.library_info = getLibraryInfo(self.libraryName)
+
+
+    def activeEncounterWindow(self):
+        if not self.ui.encounterList.currentItem() is None:
+            self.w = activeEncounter(self, self.ui.encounterList.currentItem().text())
+            self.w.show()
 
     def addEncounterWindow(self):
-        self.w = addEncounter(self, self.libraryName)
+        self.w = addEncounter(self)
         self.w.show()
 
+    def editLibraryWindow(self):
+        self.w = editLibrary(self)
+        self.w.show()
 
     def cancel(self):
         self.close()
         self.ref.show()
 
 
+class activeEncounter(QWidget):
+    def __init__(self, parent, encounter_name):
+        super(activeEncounter, self).__init__()
+
+        self.ui = Ui_activeEncounter()
+        self.ui.setupUi(self)
+        self.parent = parent
+        self.encounter_name = encounter_name
+
+        self.ui.exitButton.clicked.connect(self.cancel)
+
+        self.ui.encounterLabel.setText(self.encounter_name)
+        self.ui.encounterTable.setColumnCount(len(self.parent.library_info.field_list))
+        i = 0
+        for item in self.parent.library_info.field_list:
+            self.ui.encounterTable.setHorizontalHeaderItem(i, QTableWidgetItem(item))
+            i += 1
+        self.ui.encounterTable.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.fillEncounter()
+
+
+    def fillEncounter(self):
+        conn = sqlite3.connect('libraries/' + self.parent.libraryName + '.db')
+        table_name = cleanse(self.parent.libraryName)
+        c = conn.cursor()
+
+        encounter_list = []
+        with open(self.parent.filename, 'r') as file:
+            found_encounter = False
+            for line in file:
+                # Skip lines until we find the given encounter.
+                if line.startswith('encounter:' + self.encounter_name):
+                    found_encounter = True
+                    continue
+                if found_encounter:
+                    if line == '\n':
+                        break
+                    line = (line[1:]).split(',')
+                    quantity = int(line[0])
+                    line.pop(0)
+                    name = ("".join(line)).rstrip('\n')
+                    command = '''SELECT * FROM ''' + table_name + ''' WHERE ''' +\
+                              self.parent.library_info.field_list[0] + '''=?'''
+                    print(command)
+                    print(name)
+                    c.execute(command, (name,))
+                    result = c.fetchone()
+                    if result is not None:
+                        for j in range(quantity):
+                            i = 0
+                            self.ui.encounterTable.insertRow(self.ui.encounterTable.rowCount())
+                            for item in result:
+                                self.ui.encounterTable.setItem(self.ui.encounterTable.rowCount()-1,
+                                       self.parent.library_info.field_list.index(self.parent.library_info.table_columns[i]),
+                                                               QTableWidgetItem(str(item)))
+                                i += 1
+
+
+
+
+    def cancel(self):
+        self.close()
+
+
 class addEncounter(QWidget):
-    def __init__(self, ref, template):
+    def __init__(self, parent):
         super(addEncounter, self).__init__()
 
         self.ui = Ui_addEncounter()
         self.ui.setupUi(self)
-        self.ref = ref
-        self.template = template
+        self.parent = parent
 
-        self.filterList = []
+        # Contains all of the active filters as well as the rows they apply to.
+        self.filter_dict = {}
 
         self.ui.cancelButton.clicked.connect(self.cancel)
+        self.ui.addFilterButton.clicked.connect(self.addFilter)
+        self.ui.removeFilterButton.clicked.connect(self.removeFilter)
+        self.ui.addButton.clicked.connect(self.addToEncounter)
+        self.ui.acceptButton.clicked.connect(self.acceptEncounter)
 
         # Populate the Library table.
-        populateTable(self.ui.libraryTable, template, False)
+        self.current_library = populateTable(self.ui.libraryTable, self.parent.libraryName, False)
+
+        self.ui.currentEncounterTable.setSortingEnabled(False)
+        self.ui.currentEncounterTable.setColumnCount(len(self.current_library.field_list) + 1)
+        i = 1
+        for item in self.current_library.field_list:
+            self.ui.currentEncounterTable.setHorizontalHeaderItem(i, QTableWidgetItem(item))
+            i += 1
+        self.ui.currentEncounterTable.setHorizontalHeaderItem(0, QTableWidgetItem("Qty"))
 
         # Load the field selector.
         for i in range(self.ui.libraryTable.columnCount()):
@@ -296,7 +456,104 @@ class addEncounter(QWidget):
         new_filter = self.ui.filterEdit.text()
         field_to_filter = self.ui.filterFieldBox.currentText()
 
+        self.filter_dict[new_filter] = []
+
         # Determine the field type.
+        filter_type = self.current_library.field_types[field_to_filter]
+        column_of_interest = self.current_library.field_list.index(field_to_filter)
+        # Filter current selection based on the entered string.
+        self.ui.filterList.addItem(field_to_filter + ": " + new_filter)
+        if filter_type == "text":
+            for i in range(self.ui.libraryTable.rowCount()):
+                if not self.ui.libraryTable.isRowHidden(i):
+                    # Make the cell lowercase.
+                    current_field = self.ui.libraryTable.item(i, column_of_interest).text().lower()
+                    if new_filter.lower() not in current_field:
+                        self.filter_dict[new_filter].append(i)
+                        self.ui.libraryTable.setRowHidden(i, True)
+
+        else:
+            if re.match('\d*-?\d*', new_filter) is not None:
+                search_list = new_filter.split('-')
+                if len(search_list) > 1:
+                    if search_list[0] == '':
+                        mini = 0
+                    else:
+                        mini = int(search_list[0])
+                    if search_list[1] == '':
+                        maxi = sys.maxsize
+                    else:
+                        maxi = int(search_list[1])
+                    for i in range(self.ui.libraryTable.rowCount()):
+                        if not self.ui.libraryTable.isRowHidden(i):
+                            # Make the cell an int.
+                            current_field = int(self.ui.libraryTable.item(i, column_of_interest).text())
+                            if not mini <= current_field <= maxi:
+                                self.filter_dict[new_filter].append(i)
+                                self.ui.libraryTable.setRowHidden(i, True)
+                else:
+                    for i in range(self.ui.libraryTable.rowCount()):
+                        if not self.ui.libraryTable.isRowHidden(i):
+                            # Make the cell an int.
+                            current_field = int(self.ui.libraryTable.item(i, column_of_interest).text())
+                            if not current_field == int(new_filter):
+                                self.filter_dict[new_filter].append(i)
+                                self.ui.libraryTable.setRowHidden(i, True)
+
+    def removeFilter(self):
+        if self.ui.filterList.currentItem() is None:
+            return
+        filter_to_remove = self.ui.filterList.currentItem().text()
+        filter_to_remove = filter_to_remove.split(':')[-1]
+        filter_to_remove = filter_to_remove[1:]
+
+        self.ui.filterList.takeItem(self.ui.filterList.currentRow())
+
+        rows_filtered = self.filter_dict[filter_to_remove]
+        for item in rows_filtered:
+            for key in self.filter_dict:
+                if key == filter_to_remove:
+                    continue
+                if item in self.filter_dict[key]:
+                    rows_filtered.remove(item)
+                    break
+
+        self.filter_dict.pop(filter_to_remove, None)
+
+        for row in rows_filtered:
+            self.ui.libraryTable.setRowHidden(row, False)
+
+    def addToEncounter(self):
+        self.ui.currentEncounterTable.insertRow(self.ui.currentEncounterTable.rowCount())
+
+        current_row = self.ui.currentEncounterTable.rowCount()-1
+        selected_row = self.ui.libraryTable.selectedIndexes()[0].row()
+        for i in range(self.ui.libraryTable.columnCount()):
+            newItem = QTableWidgetItem(self.ui.libraryTable.item(selected_row, i).text())
+            newItem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            self.ui.currentEncounterTable.setItem(current_row, i+1, newItem)
+        newItem = QTableWidgetItem(str(self.ui.qtyCount.value()))
+        newItem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        self.ui.currentEncounterTable.setItem(current_row, 0, newItem)
+
+    def acceptEncounter(self):
+        if self.ui.encounterNameEdit.text() == "" or self.ui.encounterNameEdit.text() in self.parent.encounter_list:
+            return
+        # Write the encounter to the group file.
+        with open(self.parent.filename, 'a') as file:
+            # Write the header.
+            file.write("encounter:" + self.ui.encounterNameEdit.text() + '\n')
+            for row in range(self.ui.currentEncounterTable.rowCount()):
+                file.write('~' + self.ui.currentEncounterTable.item(row, 0).text())
+                file.write(',')
+                file.write(self.ui.currentEncounterTable.item(row, 1).text() + '\n')
+            file.write('\n')
+
+        # Clear the current encounter table.
+        self.parent.encounter_list.append(self.ui.encounterNameEdit.text())
+        self.parent.ui.encounterList.addItem(QListWidgetItem(self.ui.encounterNameEdit.text()))
+        self.close()
+
 
 
 

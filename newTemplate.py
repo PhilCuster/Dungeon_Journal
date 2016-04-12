@@ -150,7 +150,7 @@ class Ui_newTemplate(object):
         self.label.setText(_translate("newTemplate", "Create New Template"))
         self.label_5.setText(_translate("newTemplate", "Template Name: "))
         self.label_4.setText(_translate("newTemplate", "Game System: "))
-        self.label_3.setText(_translate("newTemplate", "Fields to be included in template:"))
+        self.label_3.setText(_translate("newTemplate", "Fields to be included in template (The first field will be a unique identifier):"))
         self.label_2.setText(_translate("newTemplate", "Attribute Name:"))
         self.label_6.setText(_translate("newTemplate", "Value Type: "))
         self.textButton.setText(_translate("newTemplate", "Text"))
