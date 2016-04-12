@@ -9,6 +9,7 @@ from activeGroup import Ui_activeGroup
 from playMenu import Ui_playMenu
 from newEntry import Ui_newEntry
 from newGroup import Ui_newGroup
+from addEncounter import Ui_addEncounter
 from PyQt5 import uic
 import os
 import sys
@@ -43,6 +44,91 @@ def checkInt(x):
         return True
     except ValueError:
         return False
+
+def populateTable(table, selectedTemplate, editable):
+    field_list = []
+    fields = {}
+    table_columns = []
+
+    # From the template file determine what fields will be on the table.
+    with open('templates/' + selectedTemplate + '.csv', 'r') as file:
+        count = 1
+        for line in file:
+            line = line.rstrip('\n')
+            if count < 3:
+                count += 1
+            else:
+                if line.endswith("(text),"):
+                    fields[line[:-8]] = line[-6:-2]
+                    field_list.append(line[:-8])
+                else:
+                    fields[line[:-11]] = line[-9:-2]
+                    field_list.append(line[:-11])
+                count += 1
+
+    # Set the initial row and column count.
+    table.setColumnCount(len(fields))
+    table.setRowCount(1)
+
+    table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+
+    # Set the headers for the table to the fields of the template.
+    i = 0
+    for item in field_list:
+        table.setHorizontalHeaderItem(i, QTableWidgetItem(item))
+        i += 1
+
+    # Connect to the database to read the library.
+    conn = sqlite3.connect('libraries/' + selectedTemplate + '.db')
+    table_name = cleanse(selectedTemplate)
+    c = conn.cursor()
+
+    # If the table does not exist then create it.
+    c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name=?''', (cleanse(selectedTemplate),))
+    if c.fetchone() is None:
+        count = 0
+        for key in fields:
+            if count == 0:
+                if fields[key] == "real":
+                    query = "CREATE TABLE " + table_name + " (" + cleanse(key) + " INTEGER)"
+                else:
+                    query = "CREATE TABLE " + table_name + " (" + cleanse(key) + " TEXT)"
+                c.execute(query)
+                count += 1
+            else:
+                query = "ALTER TABLE " + table_name + " ADD COLUMN " + \
+                        cleanse(key) + " " + fields[key]
+                c.execute(query)
+                count += 1
+
+    # Fill a list with the names of the table columns.
+    c.execute('''PRAGMA TABLE_INFO(''' + table_name + ''')''')
+    for item in c:
+        table_columns.append(item[1])
+
+    # For each row of the table add it it to the table widget.
+    row_count = 0
+    for row in c.execute('''SELECT * FROM ''' + table_name):
+        i = 0
+        table.setRowCount(row_count + 1)
+        for item in row:
+            if fields[table_columns[i]] == "integer":
+                newItem = NumericTableWidgetItem()
+                newItem.setData(Qt.EditRole, QVariant(item))
+            else:
+                newItem = QTableWidgetItem()
+                newItem.setData(Qt.EditRole, QVariant(item))
+            if not editable:
+                print("Not Editable:")
+                print(newItem.flags())
+                print(Qt.ItemIsEditable)
+                newItem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            table.setItem(row_count, getColumn(field_list, table_columns[i]), newItem)
+            i += 1
+        row_count += 1
+
+    conn.commit()
+    conn.close()
 
 
 class MainWindow(QMainWindow):
@@ -100,9 +186,11 @@ class playMenu(QWidget):
     def selectGroup(self):
         filename = QFileDialog.getOpenFileName(self, "Select Group", 'groups', '*.group')
         if filename:
-            n = activeGroup(self, filename[0])
-            n.show()
-            self.hide()
+            self.openGroup(filename[0])
+
+    def openGroup(self, filename):
+        self.w = activeGroup(self, filename)
+        self.w.show()
 
 
 class newGroup(QWidget):
@@ -130,8 +218,7 @@ class newGroup(QWidget):
         with open(filename, 'w') as file:
             file.write("library:" + self.ui.librarySelector.currentText())
 
-        n = activeGroup(self.ref, filename)
-        n.show()
+        self.ref.openGroup(filename)
         self.close()
 
     def cancel(self):
@@ -147,12 +234,71 @@ class activeGroup(QWidget):
         self.ui.setupUi(self)
         self.ref = ref
         self.filename = filename
+        self.w = None
 
         self.ui.exitButton.clicked.connect(self.cancel)
+        self.ui.addEncounterButton.clicked.connect(self.addEncounterWindow)
+
+        self.groupName = filename.split('/')[-1]
+        # Trim off file extension
+        self.groupName = self.groupName[:-6]
+        # Set the group label
+        self.ui.groupLabel.setText(self.groupName)
+        self.setWindowTitle(self.groupName)
+        self.libraryName = ""
+        # Parse Library name from file.
+        with open(filename, 'r') as file:
+            for line in file:
+                if line.startswith("library:"):
+                    self.libraryName = line.split(":")[1]
+                    self.ui.libraryLabel.setText(self.libraryName)
+
+    def addEncounterWindow(self):
+        self.w = addEncounter(self, self.libraryName)
+        self.w.show()
+
 
     def cancel(self):
         self.close()
         self.ref.show()
+
+
+class addEncounter(QWidget):
+    def __init__(self, ref, template):
+        super(addEncounter, self).__init__()
+
+        self.ui = Ui_addEncounter()
+        self.ui.setupUi(self)
+        self.ref = ref
+        self.template = template
+
+        self.filterList = []
+
+        self.ui.cancelButton.clicked.connect(self.cancel)
+
+        # Populate the Library table.
+        populateTable(self.ui.libraryTable, template, False)
+
+        # Load the field selector.
+        for i in range(self.ui.libraryTable.columnCount()):
+            self.ui.filterFieldBox.addItem(self.ui.libraryTable.horizontalHeaderItem(i).text())
+
+
+
+    def cancel(self):
+        self.close()
+
+    def addFilter(self):
+        '''
+        If the field type is text then the user can only search for a specific string.
+        If the field type is int then the user can specify a range or a max or min value.
+        '''
+        new_filter = self.ui.filterEdit.text()
+        field_to_filter = self.ui.filterFieldBox.currentText()
+
+        # Determine the field type.
+
+
 
 
 class newTemplate(QWidget):
@@ -300,6 +446,7 @@ class editLibrary(QWidget):
 
         self.field_list = []
 
+        # From the template file determine what fields will be on the table.
         with open('templates/' + self.selectedTemplate + '.csv', 'r') as file:
             count = 1
             for line in file:
@@ -315,17 +462,22 @@ class editLibrary(QWidget):
                         self.field_list.append(line[:-11])
                     count += 1
 
+        # Set the initial row and column count.
         self.ui.tableWidget.setColumnCount(len(self.fields))
         self.ui.tableWidget.setRowCount(1)
 
+        # Set the headers for the table to the fields of the template.
         i = 0
         for item in self.field_list:
             self.ui.tableWidget.setHorizontalHeaderItem(i, QTableWidgetItem(item))
             i += 1
 
+        # Connect to the database to read the library.
         conn = sqlite3.connect('libraries/' + self.selectedTemplate + '.db')
         table_name = cleanse(self.selectedTemplate)
         c = conn.cursor()
+
+        # If the table does not exist then create it.
         c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name=?''', (cleanse(self.selectedTemplate),))
         if c.fetchone() is None:
             count = 0
@@ -343,10 +495,12 @@ class editLibrary(QWidget):
                     c.execute(query)
                     count += 1
 
+        # Fill a list with the names of the table columns.
         c.execute('''PRAGMA TABLE_INFO(''' + table_name + ''')''')
         for item in c:
             self.table_columns.append(item[1])
 
+        # For each row of the table add it it to the table widget.
         row_count = 0
         for row in c.execute('''SELECT * FROM ''' + table_name):
             i = 0
