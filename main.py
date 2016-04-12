@@ -4,7 +4,11 @@ from mainWindow import Ui_MainWindow
 from newTemplate import Ui_newTemplate
 from editLibrary import Ui_editLibrary
 from selectTemplate import Ui_selectTemplate
+from newTemplateDialog import Ui_newTemplateDialog
+from activeGroup import Ui_activeGroup
+from playMenu import Ui_playMenu
 from newEntry import Ui_newEntry
+from newGroup import Ui_newGroup
 from PyQt5 import uic
 import os
 import sys
@@ -19,6 +23,9 @@ def setupDirs():
 
     if not os.path.exists("templates"):
         os.makedirs("templates")
+
+    if not os.path.exists("groups"):
+        os.makedirs("groups")
 
 def cleanse(text):
     return ''.join( c for c in text if c.isalnum())
@@ -48,6 +55,7 @@ class MainWindow(QMainWindow):
         self.ui.quitButton.clicked.connect(self.close)
         self.ui.createTemplateButton.clicked.connect(self.createNewTemplate)
         self.ui.editLibraryButton.clicked.connect(self.openEditLibrary)
+        self.ui.playMenuButton.clicked.connect(self.openPlayMenu)
         self.w = None
 
     # Create the widget to make a new template.  Hide the main window and pass a reference of itself to the
@@ -62,8 +70,98 @@ class MainWindow(QMainWindow):
         self.w = editLibrary(self)
         self.w.show()
 
+    def openPlayMenu(self):
+        self.hide()
+        self.w = playMenu(self)
+        self.w.show()
+
+
+class playMenu(QWidget):
+    def __init__(self, mainW):
+        super(playMenu, self).__init__()
+        self.ui = Ui_playMenu()
+        self.ui.setupUi(self)
+        self.mainW = mainW
+        self.w = None
+
+        self.ui.returnButton.clicked.connect(self.returnToMenu)
+        self.ui.newGroupButton.clicked.connect(self.newGroupWindow)
+        self.ui.openGroupButton.clicked.connect(self.selectGroup)
+
+    def returnToMenu(self):
+        self.close()
+        self.mainW.show()
+
+    def newGroupWindow(self):
+        self.w = newGroup(self)
+        self.w.show()
+        self.hide()
+
+    def selectGroup(self):
+        filename = QFileDialog.getOpenFileName(self, "Select Group", 'groups', '*.group')
+        if filename:
+            n = activeGroup(self, filename[0])
+            n.show()
+            self.hide()
+
+
+class newGroup(QWidget):
+    def __init__(self, ref):
+        super(newGroup, self).__init__()
+        self.ui = Ui_newGroup()
+        self.ui.setupUi(self)
+        self.ref = ref
+
+        self.ui.createButton.clicked.connect(self.createGroup)
+        self.ui.cancelButton.clicked.connect(self.cancel)
+
+        # Populate the library names.
+        self.library_list = []
+        for file in os.listdir('libraries'):
+            if file.endswith('.db'):
+                self.library_list.append(file[:-3])
+        for library in self.library_list:
+            self.ui.librarySelector.addItem(library)
+
+    def createGroup(self):
+        if self.ui.nameEdit.text() == "":
+            return
+        filename = 'groups/' + self.ui.nameEdit.text() + ".group"
+        with open(filename, 'w') as file:
+            file.write("library:" + self.ui.librarySelector.currentText())
+
+        n = activeGroup(self.ref, filename)
+        n.show()
+        self.close()
+
+    def cancel(self):
+        self.close()
+        self.ref.show()
+
+
+class activeGroup(QWidget):
+    def __init__(self, ref, filename):
+        super(activeGroup, self).__init__()
+
+        self.ui = Ui_activeGroup()
+        self.ui.setupUi(self)
+        self.ref = ref
+        self.filename = filename
+
+        self.ui.exitButton.clicked.connect(self.cancel)
+
+    def cancel(self):
+        self.close()
+        self.ref.show()
+
 
 class newTemplate(QWidget):
+
+    # To Do:
+    #
+    # 1. Ensure that when a template is made an identical template does not already exist.
+    #
+
     def __init__(self, mainW):
         super(newTemplate, self).__init__()
 
@@ -113,6 +211,30 @@ class newTemplate(QWidget):
             self.ui.templateName.clear()
             self.ui.gameSystem.clear()
             self.ui.fieldList.clear()
+
+            d = newTemplateDialog(self, self.mainW)
+            d.show()
+
+
+class newTemplateDialog(QDialog):
+    def __init__(self, parent=None, super_parent=None):
+        super(newTemplateDialog, self).__init__(parent)
+
+        self.parent = parent
+        self.super_parent = super_parent
+        self.ui = Ui_newTemplateDialog()
+        self.ui.setupUi(self)
+
+        self.ui.buttonBox.button(QDialogButtonBox.Ok).setText("Create New Template")
+        self.ui.buttonBox.button(QDialogButtonBox.Cancel).setText("Return to Main Menu")
+
+        self.ui.buttonBox.accepted.connect(self.close)
+        self.ui.buttonBox.rejected.connect(self.closeParent)
+
+    def closeParent(self):
+        self.parent.close()
+        self.close()
+        self.super_parent.show()
 
 
 class NumericTableWidgetItem(QTableWidgetItem):
@@ -335,8 +457,6 @@ class newEntry(QWidget):
             command += "?,"
             submitList.append(submitDict[self.tableColumns[i]])
         command = command[:-1] + ')'
-
-        print(command)
         c.execute(command, submitList)
 
         conn.commit()
