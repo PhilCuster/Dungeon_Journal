@@ -302,6 +302,7 @@ class activeGroup(QWidget):
 
         self.ui.exitButton.clicked.connect(self.cancel)
         self.ui.addEncounterButton.clicked.connect(self.addEncounterWindow)
+        self.ui.editEncounterButton.clicked.connect(self.editEncounterWindow)
         self.ui.openEncounterButton.clicked.connect(self.activeEncounterWindow)
         self.ui.editLibraryButton.clicked.connect(self.editLibraryWindow)
 
@@ -335,7 +336,11 @@ class activeGroup(QWidget):
             self.w.show()
 
     def addEncounterWindow(self):
-        self.w = addEncounter(self)
+        self.w = addEncounter(self, True)
+        self.w.show()
+
+    def editEncounterWindow(self):
+        self.w = addEncounter(self, False)
         self.w.show()
 
     def editLibraryWindow(self):
@@ -412,7 +417,7 @@ class activeEncounter(QWidget):
 
 
 class addEncounter(QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent, new_encounter):
         super(addEncounter, self).__init__()
 
         self.ui = Ui_addEncounter()
@@ -426,10 +431,15 @@ class addEncounter(QWidget):
         self.ui.addFilterButton.clicked.connect(self.addFilter)
         self.ui.removeFilterButton.clicked.connect(self.removeFilter)
         self.ui.addButton.clicked.connect(self.addToEncounter)
+        self.ui.removeButton.clicked.connect(self.removeFromEncounter)
         self.ui.acceptButton.clicked.connect(self.acceptEncounter)
 
         # Populate the Library table.
         self.current_library = populateTable(self.ui.libraryTable, self.parent.libraryName, False)
+
+        # If we are editing an encounter load it up.
+        if not new_encounter:
+            self.loadEncounter()
 
         self.ui.currentEncounterTable.setSortingEnabled(False)
         self.ui.currentEncounterTable.setColumnCount(len(self.current_library.field_list) + 1)
@@ -447,6 +457,9 @@ class addEncounter(QWidget):
 
     def cancel(self):
         self.close()
+
+    def loadEncounter(self):
+        print("Loading up encounter...")
 
     def addFilter(self):
         '''
@@ -533,8 +546,10 @@ class addEncounter(QWidget):
             newItem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             self.ui.currentEncounterTable.setItem(current_row, i+1, newItem)
         newItem = QTableWidgetItem(str(self.ui.qtyCount.value()))
-        newItem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
         self.ui.currentEncounterTable.setItem(current_row, 0, newItem)
+
+    def removeFromEncounter(self):
+        self.ui.currentEncounterTable.removeRow(self.ui.currentEncounterTable.currentRow())
 
     def acceptEncounter(self):
         if self.ui.encounterNameEdit.text() == "" or self.ui.encounterNameEdit.text() in self.parent.encounter_list:

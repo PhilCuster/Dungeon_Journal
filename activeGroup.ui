@@ -127,6 +127,13 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="editEncounterButton">
+         <property name="text">
+          <string>Edit Encounter</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="addEncounterButton">
          <property name="text">
           <string>Add Encounter</string>
@@ -162,6 +169,13 @@
         <widget class="QPushButton" name="openTableButton">
          <property name="text">
           <string>Open Table</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="editTableButton">
+         <property name="text">
+          <string>Edit Table</string>
          </property>
         </widget>
        </item>

@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file './addEncounter.ui'
 #
-# Created by: PyQt5 UI code generator 5.5.1
+# Created by: PyQt5 UI code generator 5.4.1
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -77,6 +77,16 @@ class Ui_addEncounter(object):
         self.verticalLayout_3.addLayout(self.horizontalLayout_4)
         spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout_3.addItem(spacerItem)
+        self.removeButton = QtWidgets.QPushButton(addEncounter)
+        font = QtGui.QFont()
+        font.setPointSize(9)
+        font.setBold(True)
+        font.setWeight(75)
+        self.removeButton.setFont(font)
+        self.removeButton.setObjectName("removeButton")
+        self.verticalLayout_3.addWidget(self.removeButton)
+        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.verticalLayout_3.addItem(spacerItem1)
         self.horizontalLayout_2.addLayout(self.verticalLayout_3)
         self.verticalLayout_2 = QtWidgets.QVBoxLayout()
         self.verticalLayout_2.setObjectName("verticalLayout_2")
@@ -101,15 +111,15 @@ class Ui_addEncounter(object):
         self.verticalLayout_2.addWidget(self.libraryTable)
         self.horizontalLayout_2.addLayout(self.verticalLayout_2)
         self.verticalLayout.addLayout(self.horizontalLayout_2)
-        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
-        self.verticalLayout.addItem(spacerItem1)
+        spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        self.verticalLayout.addItem(spacerItem2)
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.acceptButton = QtWidgets.QPushButton(addEncounter)
         self.acceptButton.setObjectName("acceptButton")
         self.horizontalLayout.addWidget(self.acceptButton)
-        spacerItem2 = QtWidgets.QSpacerItem(100, 20, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Minimum)
-        self.horizontalLayout.addItem(spacerItem2)
+        spacerItem3 = QtWidgets.QSpacerItem(100, 20, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Minimum)
+        self.horizontalLayout.addItem(spacerItem3)
         self.cancelButton = QtWidgets.QPushButton(addEncounter)
         self.cancelButton.setObjectName("cancelButton")
         self.horizontalLayout.addWidget(self.cancelButton)
@@ -125,6 +135,7 @@ class Ui_addEncounter(object):
         self.removeFilterButton.setText(_translate("addEncounter", "Remove Filter"))
         self.addButton.setText(_translate("addEncounter", "<--Add--<"))
         self.label_2.setText(_translate("addEncounter", "Qty: "))
+        self.removeButton.setText(_translate("addEncounter", ">--Remove-->"))
         self.addFilterButton.setText(_translate("addEncounter", "Add Filter"))
         self.libraryTable.setSortingEnabled(True)
         self.acceptButton.setText(_translate("addEncounter", "Accept"))

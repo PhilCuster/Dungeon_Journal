@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file './activeGroup.ui'
 #
-# Created by: PyQt5 UI code generator 5.5.1
+# Created by: PyQt5 UI code generator 5.4.1
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -81,6 +81,9 @@ class Ui_activeGroup(object):
         self.openEncounterButton = QtWidgets.QPushButton(activeGroup)
         self.openEncounterButton.setObjectName("openEncounterButton")
         self.verticalLayout_2.addWidget(self.openEncounterButton)
+        self.editEncounterButton = QtWidgets.QPushButton(activeGroup)
+        self.editEncounterButton.setObjectName("editEncounterButton")
+        self.verticalLayout_2.addWidget(self.editEncounterButton)
         self.addEncounterButton = QtWidgets.QPushButton(activeGroup)
         self.addEncounterButton.setObjectName("addEncounterButton")
         self.verticalLayout_2.addWidget(self.addEncounterButton)
@@ -103,6 +106,9 @@ class Ui_activeGroup(object):
         self.openTableButton = QtWidgets.QPushButton(activeGroup)
         self.openTableButton.setObjectName("openTableButton")
         self.verticalLayout_3.addWidget(self.openTableButton)
+        self.editTableButton = QtWidgets.QPushButton(activeGroup)
+        self.editTableButton.setObjectName("editTableButton")
+        self.verticalLayout_3.addWidget(self.editTableButton)
         self.addTableButton = QtWidgets.QPushButton(activeGroup)
         self.addTableButton.setObjectName("addTableButton")
         self.verticalLayout_3.addWidget(self.addTableButton)
@@ -127,9 +133,11 @@ class Ui_activeGroup(object):
         self.editLibraryButton.setText(_translate("activeGroup", "Edit Library"))
         self.label_2.setText(_translate("activeGroup", "Encounters"))
         self.openEncounterButton.setText(_translate("activeGroup", "Open Encounter"))
+        self.editEncounterButton.setText(_translate("activeGroup", "Edit Encounter"))
         self.addEncounterButton.setText(_translate("activeGroup", "Add Encounter"))
         self.label_4.setText(_translate("activeGroup", "Random Tables"))
         self.openTableButton.setText(_translate("activeGroup", "Open Table"))
+        self.editTableButton.setText(_translate("activeGroup", "Edit Table"))
         self.addTableButton.setText(_translate("activeGroup", "Add Table"))
         self.exitButton.setText(_translate("activeGroup", "Exit"))
 
