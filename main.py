@@ -11,6 +11,7 @@ from newEntry import Ui_newEntry
 from newGroup import Ui_newGroup
 from addEncounter import Ui_addEncounter
 from activeEncounter import Ui_activeEncounter
+from createTable import Ui_createTable
 from LibraryDef import *
 from PyQt5 import uic
 import os
@@ -52,6 +53,7 @@ def populateTable(table, selectedTemplate, editable):
     field_list = []
     fields = {}
     table_columns = []
+    true_columns = {}
 
     # From the template file determine what fields will be on the table.
     with open('templates/' + selectedTemplate + '.csv', 'r') as file:
@@ -109,13 +111,16 @@ def populateTable(table, selectedTemplate, editable):
     for item in c:
         table_columns.append(item[1])
 
+    for item in field_list:
+        true_columns[cleanse(item)] = item
+
     # For each row of the table add it it to the table widget.
     row_count = 0
     for row in c.execute('''SELECT * FROM ''' + table_name):
         i = 0
         table.setRowCount(row_count + 1)
         for item in row:
-            if fields[table_columns[i]] == "integer":
+            if fields[true_columns[table_columns[i]]] == "integer":
                 newItem = NumericTableWidgetItem()
                 newItem.setData(Qt.EditRole, QVariant(item))
             else:
@@ -123,14 +128,14 @@ def populateTable(table, selectedTemplate, editable):
                 newItem.setData(Qt.EditRole, QVariant(item))
             if not editable:
                 newItem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-            table.setItem(row_count, getColumn(field_list, table_columns[i]), newItem)
+            table.setItem(row_count, getColumn(field_list, true_columns[table_columns[i]]), newItem)
             i += 1
         row_count += 1
 
     conn.commit()
     conn.close()
 
-    return LibraryDef(fields, field_list, table_columns)
+    return LibraryDef(fields, field_list, table_columns, true_columns)
 
 
 class MainWindow(QMainWindow):
@@ -232,6 +237,7 @@ def getLibraryInfo(libraryName):
     field_list = []
     fields = {}
     table_columns = []
+    true_columns = {}
 
     # From the template file determine what fields will be on the table.
     with open('templates/' + libraryName + '.csv', 'r') as file:
@@ -278,15 +284,19 @@ def getLibraryInfo(libraryName):
     for item in c:
         table_columns.append(item[1])
 
-    # Fill a list with the names of the table columns.
-    c.execute('''PRAGMA TABLE_INFO(''' + table_name + ''')''')
-    for item in c:
-        table_columns.append(item[1])
+#    # Fill a list with the names of the table columns.
+#    c.execute('''PRAGMA TABLE_INFO(''' + table_name + ''')''')
+#    for item in c:
+#        table_columns.append(item[1])
+
+    # Create a reference from the column names to true names.
+    for item in field_list:
+        true_columns[cleanse(item)] = item
 
     conn.commit()
     conn.close()
 
-    return LibraryDef(fields, field_list, table_columns)
+    return LibraryDef(fields, field_list, table_columns, true_columns)
 
 
 class activeGroup(QWidget):
@@ -305,6 +315,7 @@ class activeGroup(QWidget):
         self.ui.editEncounterButton.clicked.connect(self.editEncounterWindow)
         self.ui.openEncounterButton.clicked.connect(self.activeEncounterWindow)
         self.ui.editLibraryButton.clicked.connect(self.editLibraryWindow)
+        self.ui.addTableButton.clicked.connect(self.createTableWindow)
 
         self.groupName = filename.split('/')[-1]
         # Trim off file extension
@@ -335,12 +346,16 @@ class activeGroup(QWidget):
             self.w = activeEncounter(self, self.ui.encounterList.currentItem().text())
             self.w.show()
 
+    def createTableWindow(self):
+        self.w = createTable(self)
+        self.w.show()
+
     def addEncounterWindow(self):
-        self.w = addEncounter(self, True)
+        self.w = addEncounter(self, True, False)
         self.w.show()
 
     def editEncounterWindow(self):
-        self.w = addEncounter(self, False)
+        self.w = addEncounter(self, False, True)
         self.w.show()
 
     def editLibraryWindow(self):
@@ -394,7 +409,7 @@ class activeEncounter(QWidget):
                     line.pop(0)
                     name = ("".join(line)).rstrip('\n')
                     command = '''SELECT * FROM ''' + table_name + ''' WHERE ''' +\
-                              self.parent.library_info.field_list[0] + '''=?'''
+                              cleanse(self.parent.library_info.field_list[0]) + '''=?'''
                     print(command)
                     print(name)
                     c.execute(command, (name,))
@@ -405,7 +420,8 @@ class activeEncounter(QWidget):
                             self.ui.encounterTable.insertRow(self.ui.encounterTable.rowCount())
                             for item in result:
                                 self.ui.encounterTable.setItem(self.ui.encounterTable.rowCount()-1,
-                                       self.parent.library_info.field_list.index(self.parent.library_info.table_columns[i]),
+                                       self.parent.library_info.field_list.index(
+                                           self.parent.library_info.true_columns[self.parent.library_info.table_columns[i]]),
                                                                QTableWidgetItem(str(item)))
                                 i += 1
 
@@ -416,13 +432,39 @@ class activeEncounter(QWidget):
         self.close()
 
 
+class createTable(QWidget):
+    def __init__(self, parent):
+        super(createTable, self).__init__()
+
+        self.ui = Ui_createTable()
+        self.ui.setupUi(self)
+        self.parent = parent
+
+        self.ui.cancelButton.clicked.connect(self.cancel)
+        self.ui.addButton.clicked.connect(self.addEntry)
+
+        self.ui.tableWidget.setColumnCount(2)
+        self.ui.tableWidget.setHorizontalHeaderItem(0, QTableWidgetItem("Encounter Name"))
+        self.ui.tableWidget.setHorizontalHeaderItem(1, QTableWidgetItem("Percent Chance"))
+        self.ui.tableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+
+
+    def cancel(self):
+        self.close()
+
+    def addEntry(self):
+        self.w = addEncounter(self.parent, True, True, tableRef=self)
+        self.w.show()
+
 class addEncounter(QWidget):
-    def __init__(self, parent, new_encounter):
+    def __init__(self, parent, new_encounter, for_table, tableRef=None):
         super(addEncounter, self).__init__()
 
         self.ui = Ui_addEncounter()
         self.ui.setupUi(self)
         self.parent = parent
+        self.for_table = for_table
+        self.tableRef = tableRef
 
         # Contains all of the active filters as well as the rows they apply to.
         self.filter_dict = {}
@@ -557,7 +599,10 @@ class addEncounter(QWidget):
         # Write the encounter to the group file.
         with open(self.parent.filename, 'a') as file:
             # Write the header.
-            file.write("encounter:" + self.ui.encounterNameEdit.text() + '\n')
+            if not self.for_table:
+                file.write("encounter:" + self.ui.encounterNameEdit.text() + '\n')
+            else:
+                file.write("table_encounter:" + self.ui.encounterNameEdit.text() + '\n')
             for row in range(self.ui.currentEncounterTable.rowCount()):
                 file.write('~' + self.ui.currentEncounterTable.item(row, 0).text())
                 file.write(',')
@@ -565,12 +610,17 @@ class addEncounter(QWidget):
             file.write('\n')
 
         # Clear the current encounter table.
-        self.parent.encounter_list.append(self.ui.encounterNameEdit.text())
-        self.parent.ui.encounterList.addItem(QListWidgetItem(self.ui.encounterNameEdit.text()))
+        if not self.for_table:
+            self.parent.encounter_list.append(self.ui.encounterNameEdit.text())
+            self.parent.ui.encounterList.addItem(QListWidgetItem(self.ui.encounterNameEdit.text()))
+        else:
+            self.tableRef.ui.tableWidget.insertRow(self.tableRef.ui.tableWidget.rowCount())
+            print("Creating: " + self.ui.encounterNameEdit.text())
+            newItem = QTableWidgetItem(self.ui.encounterNameEdit.text())
+            newItem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            self.tableRef.ui.tableWidget.setItem(self.tableRef.ui.tableWidget.rowCount()-1, 0,
+                                                 QTableWidgetItem(self.ui.encounterNameEdit.text()))
         self.close()
-
-
-
 
 
 class newTemplate(QWidget):
@@ -686,9 +736,7 @@ class editLibrary(QWidget):
 
         self.d = None
         self.selectedTemplate = None
-        self.field_list = []
-        self.fields = {}
-        self.table_columns = []
+        self.library = None
 
         self.ui.tableWidget.setSortingEnabled(True)
 
@@ -706,7 +754,7 @@ class editLibrary(QWidget):
 
     def newEntryWindow(self):
         if self.selectedTemplate is not None:
-            self.d = newEntry(self, cleanse(self.selectedTemplate), self.selectedTemplate, self.fields, self.field_list, self.table_columns)
+            self.d = newEntry(self, cleanse(self.selectedTemplate), self.selectedTemplate, self.library)
             self.d.show()
 
     def changeLibrary(self, library):
@@ -716,7 +764,10 @@ class editLibrary(QWidget):
 
     def importTemplate(self):
 
-        self.field_list = []
+        fields = {}
+        field_list = []
+        table_columns = []
+        true_columns = {}
 
         # From the template file determine what fields will be on the table.
         with open('templates/' + self.selectedTemplate + '.csv', 'r') as file:
@@ -727,20 +778,20 @@ class editLibrary(QWidget):
                     count += 1
                 else:
                     if line.endswith("(text),"):
-                        self.fields[line[:-8]] = line[-6:-2]
-                        self.field_list.append(line[:-8])
+                        fields[line[:-8]] = line[-6:-2]
+                        field_list.append(line[:-8])
                     else:
-                        self.fields[line[:-11]] = line[-9:-2]
-                        self.field_list.append(line[:-11])
+                        fields[line[:-11]] = line[-9:-2]
+                        field_list.append(line[:-11])
                     count += 1
 
         # Set the initial row and column count.
-        self.ui.tableWidget.setColumnCount(len(self.fields))
+        self.ui.tableWidget.setColumnCount(len(fields))
         self.ui.tableWidget.setRowCount(1)
 
         # Set the headers for the table to the fields of the template.
         i = 0
-        for item in self.field_list:
+        for item in field_list:
             self.ui.tableWidget.setHorizontalHeaderItem(i, QTableWidgetItem(item))
             i += 1
 
@@ -753,9 +804,9 @@ class editLibrary(QWidget):
         c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name=?''', (cleanse(self.selectedTemplate),))
         if c.fetchone() is None:
             count = 0
-            for key in self.fields:
+            for key in fields:
                 if count == 0:
-                    if self.fields[key] == "real":
+                    if fields[key] == "real":
                         query = "CREATE TABLE " + table_name + " (" + cleanse(key) + " INTEGER)"
                     else:
                         query = "CREATE TABLE " + table_name + " (" + cleanse(key) + " TEXT)"
@@ -763,14 +814,14 @@ class editLibrary(QWidget):
                     count += 1
                 else:
                     query = "ALTER TABLE " + table_name + " ADD COLUMN " + \
-                            cleanse(key) + " " + self.fields[key]
+                            cleanse(key) + " " + fields[key]
                     c.execute(query)
                     count += 1
 
         # Fill a list with the names of the table columns.
         c.execute('''PRAGMA TABLE_INFO(''' + table_name + ''')''')
         for item in c:
-            self.table_columns.append(item[1])
+            table_columns.append(item[1])
 
         # For each row of the table add it it to the table widget.
         row_count = 0
@@ -778,18 +829,23 @@ class editLibrary(QWidget):
             i = 0
             self.ui.tableWidget.setRowCount(row_count + 1)
             for item in row:
-                if self.fields[self.table_columns[i]] == "integer":
+                if fields[table_columns[i]] == "integer":
                     newItem = NumericTableWidgetItem()
                     newItem.setData(Qt.EditRole, QVariant(item))
                 else:
                     newItem = QTableWidgetItem()
                     newItem.setData(Qt.EditRole, QVariant(item))
-                self.ui.tableWidget.setItem(row_count, getColumn(self.field_list, self.table_columns[i]), newItem)
+                self.ui.tableWidget.setItem(row_count, getColumn(field_list, table_columns[i]), newItem)
                 i += 1
             row_count += 1
 
+        for item in field_list:
+            true_columns[cleanse(item)] = item
+
         conn.commit()
         conn.close()
+
+        self.library = LibraryDef(fields, field_list, table_columns, true_columns)
 
 
     def refresh(self, newEntry):
@@ -797,8 +853,8 @@ class editLibrary(QWidget):
         row_count = self.ui.tableWidget.rowCount() + 1
         self.ui.tableWidget.setRowCount(row_count)
         i = 0
-        for field in self.field_list:
-            if self.fields[field] == "integer":
+        for field in self.library.field_list:
+            if self.library.field_types[field] == "integer":
                 newItem = NumericTableWidgetItem()
                 newItem.setData(Qt.EditRole, QVariant(int(newEntry[field])))
             else:
@@ -833,15 +889,16 @@ class selectTemplate(QWidget):
             self.close()
 
 class newEntry(QWidget):
-    def __init__(self, ref, currentTemplate, rawTemplate, fields, field_list, tableColumns):
+    def __init__(self, ref, currentTemplate, rawTemplate, library):
         super(newEntry, self).__init__()
 
         self.ui = Ui_newEntry()
         self.ui.setupUi(self)
         self.ref = ref
-        self.fields = fields
-        self.tableColumns = tableColumns
+        self.fields = library.field_types
+        self.tableColumns = library.table_columns
         self.selectedTemplate = currentTemplate
+        self.true_columns = library.true_columns
         self.rawTemplate = rawTemplate
 
         self.ui.cancelButton.clicked.connect(self.close)
@@ -855,7 +912,7 @@ class newEntry(QWidget):
         self.ui.scrollArea.setWidgetResizable(True)
         self.ui.scrollArea.setWidget(self.scrollWidget)
 
-        for item in field_list:
+        for item in library.field_list:
             self.formLayout.addRow(QLabel(item), QLineEdit())
 
 
@@ -881,7 +938,7 @@ class newEntry(QWidget):
         for i in range(len(self.fields)):
             #command = command + submitDict[self.tableColumns[i]] + ","
             command += "?,"
-            submitList.append(submitDict[self.tableColumns[i]])
+            submitList.append(submitDict[self.true_columns[self.tableColumns[i]]])
         command = command[:-1] + ')'
         c.execute(command, submitList)
 
