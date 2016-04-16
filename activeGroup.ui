@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>616</width>
-    <height>488</height>
+    <width>863</width>
+    <height>606</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -127,16 +127,32 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="editEncounterButton">
+        <widget class="QPushButton" name="addEncounterButton">
          <property name="text">
-          <string>Edit Encounter</string>
+          <string>Add Encounter</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="addEncounterButton">
+        <spacer name="verticalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="deleteEncounterButton">
          <property name="text">
-          <string>Add Encounter</string>
+          <string>Delete Encounter</string>
          </property>
         </widget>
        </item>
@@ -173,16 +189,32 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="editTableButton">
+        <widget class="QPushButton" name="addTableButton">
          <property name="text">
-          <string>Edit Table</string>
+          <string>Add Table</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="addTableButton">
+        <spacer name="verticalSpacer_3">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="deleteTableButton">
          <property name="text">
-          <string>Add Table</string>
+          <string>Delete Table</string>
          </property>
         </widget>
        </item>
@@ -196,12 +228,12 @@
       <enum>Qt::Vertical</enum>
      </property>
      <property name="sizeType">
-      <enum>QSizePolicy::Preferred</enum>
+      <enum>QSizePolicy::Fixed</enum>
      </property>
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>20</height>
+       <height>43</height>
       </size>
      </property>
     </spacer>

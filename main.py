@@ -12,12 +12,14 @@ from newGroup import Ui_newGroup
 from addEncounter import Ui_addEncounter
 from activeEncounter import Ui_activeEncounter
 from createTable import Ui_createTable
+from activeTable import Ui_activeTable
 from LibraryDef import *
 from PyQt5 import uic
 import os
 import sys
 import sqlite3
 import re
+from random import randint
 
 def compileUIC():
     uic.compileUiDir('./')
@@ -136,6 +138,12 @@ def populateTable(table, selectedTemplate, editable):
     conn.close()
 
     return LibraryDef(fields, field_list, table_columns, true_columns)
+
+def errorMessage(message):
+    msg = QMessageBox()
+    msg.setWindowTitle("Error")
+    msg.setText(message)
+    msg.exec_()
 
 
 class MainWindow(QMainWindow):
@@ -309,13 +317,16 @@ class activeGroup(QWidget):
         self.filename = filename
         self.w = None
         self.encounter_list = []
+        self.table_list = []
 
         self.ui.exitButton.clicked.connect(self.cancel)
         self.ui.addEncounterButton.clicked.connect(self.addEncounterWindow)
-        self.ui.editEncounterButton.clicked.connect(self.editEncounterWindow)
+        self.ui.deleteEncounterButton.clicked.connect(self.deleteEncounter)
         self.ui.openEncounterButton.clicked.connect(self.activeEncounterWindow)
         self.ui.editLibraryButton.clicked.connect(self.editLibraryWindow)
         self.ui.addTableButton.clicked.connect(self.createTableWindow)
+        self.ui.openTableButton.clicked.connect(self.activeTableWindow)
+        self.ui.deleteTableButton.clicked.connect(self.deleteTable)
 
         self.groupName = filename.split('/')[-1]
         # Trim off file extension
@@ -324,19 +335,27 @@ class activeGroup(QWidget):
         self.ui.groupLabel.setText(self.groupName)
         self.setWindowTitle(self.groupName)
         self.libraryName = ""
-        # Parse Library name and encounters from file.
+        # Parse Library name, encounters, and tables from file.
         with open(filename, 'r') as file:
             for line in file:
                 if line.startswith("library:"):
                     self.libraryName = line.split(":")[1]
                     self.libraryName = self.libraryName.rstrip('\n')
                     self.ui.libraryLabel.setText(self.libraryName)
-                if line.startswith("encounter:"):
+                elif line.startswith("encounter:"):
                     line = line.split(':')
                     line.pop(0)
                     line = "".join(line)
                     line = line.rstrip('\n')
                     self.ui.encounterList.addItem(QListWidgetItem(line))
+                    self.encounter_list.append(line)
+                elif line.startswith("table:"):
+                    line = line.split(':')
+                    line.pop(0)
+                    line = "".join(line)
+                    line = line.rstrip('\n')
+                    self.ui.tableList.addItem(QListWidgetItem(line))
+                    self.table_list.append(line)
 
         self.library_info = getLibraryInfo(self.libraryName)
 
@@ -344,6 +363,11 @@ class activeGroup(QWidget):
     def activeEncounterWindow(self):
         if not self.ui.encounterList.currentItem() is None:
             self.w = activeEncounter(self, self.ui.encounterList.currentItem().text())
+            self.w.show()
+
+    def activeTableWindow(self):
+        if not self.ui.tableList.currentItem() is None:
+            self.w = activeTable(self, self.ui.tableList.currentItem().text())
             self.w.show()
 
     def createTableWindow(self):
@@ -354,9 +378,50 @@ class activeGroup(QWidget):
         self.w = addEncounter(self, True, False)
         self.w.show()
 
-    def editEncounterWindow(self):
-        self.w = addEncounter(self, False, True)
-        self.w.show()
+    def deleteEncounter(self):
+        deleted_encounter = self.ui.encounterList.currentItem().text()
+        self.ui.encounterList.takeItem(self.ui.encounterList.currentRow())
+        file = open(self.filename, 'r')
+        lines = file.readlines()
+        file.close()
+        found_encounter = False
+        with open(self.filename, 'w') as file:
+            for line in lines:
+                # If we have reached our encounter.
+                if line.startswith("encounter:" + deleted_encounter) and not found_encounter:
+                    found_encounter = True
+                    continue
+                elif found_encounter:
+                    # If we have reached the next entry.
+                    if line.startswith("table:") or line.startswith("encounter:"):
+                        found_encounter = False
+                        file.write(line)
+                    continue
+                else:
+                    file.write(line)
+
+
+    def deleteTable(self):
+        deleted_table = self.ui.tableList.currentItem().text()
+        self.ui.tableList.takeItem(self.ui.tableList.currentRow())
+        file = open(self.filename, 'r')
+        lines = file.readlines()
+        file.close()
+        found_table = False
+        with open(self.filename, 'w') as file:
+            for line in lines:
+                # If we have reached our encounter.
+                if line.startswith("table:" + deleted_table) and not found_table:
+                    found_table = True
+                    continue
+                elif found_table:
+                    # If we have reached the next entry.
+                    if line.startswith("table:") or line.startswith("encounter:"):
+                        found_table = False
+                        file.write(line)
+                    continue
+                else:
+                    file.write(line)
 
     def editLibraryWindow(self):
         self.w = editLibrary(self)
@@ -366,15 +431,60 @@ class activeGroup(QWidget):
         self.close()
         self.ref.show()
 
+class activeTable(QWidget):
+    def __init__(self, parent, table_name):
+        super(activeTable, self).__init__()
+
+        self.ui = Ui_activeTable()
+        self.ui.setupUi(self)
+        self.parent = parent
+        self.table_name = table_name
+        self.ui.tableLabel.setText(table_name)
+
+        self.ui.supriseButton.clicked.connect(self.suprise)
+
+    def suprise(self):
+        # Generate random random number between 1-100.
+        roll = randint(1, 100)
+
+        # Parse the group file.
+        picked_encounter = None
+        found_table = False
+        with open(self.parent.filename, 'r') as file:
+            total = 0
+            # Parse until we find the table entry.
+            for line in file:
+                if line.rstrip('\n') == "table:" + self.table_name:
+                    found_table = True
+                elif found_table == False:
+                    continue
+                elif line.startswith("table_encounter:"):
+                    line = line.rstrip('\n').split(':')
+                    line.pop(0)
+                    line = "".join(line)
+                    line = line.split(',')
+                    total += int(line[1])
+                    if roll <= total:
+                        picked_encounter = line[0]
+                        break
+        # Close current window and open the picked encounter.
+        self.w = activeEncounter(self.parent, picked_encounter, self.table_name)
+        self.w.show()
+
+
+
+
+
 
 class activeEncounter(QWidget):
-    def __init__(self, parent, encounter_name):
+    def __init__(self, parent, encounter_name, for_table=None):
         super(activeEncounter, self).__init__()
 
         self.ui = Ui_activeEncounter()
         self.ui.setupUi(self)
         self.parent = parent
         self.encounter_name = encounter_name
+        self.for_table = for_table
 
         self.ui.exitButton.clicked.connect(self.cancel)
 
@@ -396,9 +506,19 @@ class activeEncounter(QWidget):
         encounter_list = []
         with open(self.parent.filename, 'r') as file:
             found_encounter = False
+            found_table = False
             for line in file:
+                # If this is for a table then find that table entry first.
+                if self.for_table is not None and line.rstrip('\n') == "table:" + self.for_table and not found_table:
+                    found_table = True
+                    continue
+                # This is for a table and we have found it.
+                elif self.for_table is not None and found_table and line.startswith(
+                                "table_encounter:" + self.encounter_name):
+                    found_encounter = True
+                    continue
                 # Skip lines until we find the given encounter.
-                if line.startswith('encounter:' + self.encounter_name):
+                elif line.startswith('encounter:' + self.encounter_name) and self.for_table is None:
                     found_encounter = True
                     continue
                 if found_encounter:
@@ -442,6 +562,7 @@ class createTable(QWidget):
 
         self.ui.cancelButton.clicked.connect(self.cancel)
         self.ui.addButton.clicked.connect(self.addEntry)
+        self.ui.acceptButton.clicked.connect(self.accept)
 
         self.ui.tableWidget.setColumnCount(2)
         self.ui.tableWidget.setHorizontalHeaderItem(0, QTableWidgetItem("Encounter Name"))
@@ -455,6 +576,61 @@ class createTable(QWidget):
     def addEntry(self):
         self.w = addEncounter(self.parent, True, True, tableRef=self)
         self.w.show()
+
+    def accept(self):
+        table_name = self.ui.tableName.text()
+        # If the table name is blank.
+        if table_name == "":
+            return
+
+        # If the table by that name already exists.
+        if table_name in self.parent.table_list:
+            errorMessage("Table with that name already exists!")
+            return
+
+        # Put all the percents in a list.
+        percents = []
+        for i in range(self.ui.tableWidget.rowCount()):
+            percents.append(self.ui.tableWidget.item(i, 1).text())
+        # Check to make sure they are all ints and that they add up to 100.
+        total = 0
+        for item in percents:
+            if not checkInt(item):
+                errorMessage("Invalid percent in row " + str(percents.index(item) + 1))
+                return
+            total += int(item)
+        if not total == 100:
+            errorMessage("Percents do not add to 100!")
+            return
+        # Percents are all fine, now we can write the encounter information to the group file.
+        with open(self.parent.filename, 'a')as file:
+            # Write the header for the table.
+            file.write("table:" + table_name + '\n\n')
+            # Write the names of the encounters.
+#            for i in range(self.ui.tableWidget.rowCount()):
+#                file.write('~' + self.ui.tableWidget.item(i, 0).text() + ','
+#                           + self.ui.tableWidget.item(i, 1).text() + '\n')
+
+            # Read from the temp file and write to group file.
+            temp = open('groups/~temp.csv', 'r')
+            count = 0
+            for line in temp:
+                if line.startswith("table_encounter"):
+                    file.write(line.rstrip('\n') + ',' + percents[count] + '\n')
+                    count += 1
+                else:
+                    file.write(line)
+
+
+            temp.close()
+            os.remove("groups/~temp.csv")
+
+
+        # Update the table list.
+        self.parent.ui.tableList.addItem(QListWidgetItem(table_name))
+        self.parent.table_list.append(table_name)
+
+        self.close()
 
 class addEncounter(QWidget):
     def __init__(self, parent, new_encounter, for_table, tableRef=None):
@@ -475,6 +651,7 @@ class addEncounter(QWidget):
         self.ui.addButton.clicked.connect(self.addToEncounter)
         self.ui.removeButton.clicked.connect(self.removeFromEncounter)
         self.ui.acceptButton.clicked.connect(self.acceptEncounter)
+        self.ui.instructionButton.clicked.connect(self.instruct)
 
         # Populate the Library table.
         self.current_library = populateTable(self.ui.libraryTable, self.parent.libraryName, False)
@@ -497,11 +674,19 @@ class addEncounter(QWidget):
 
 
 
+    def instruct(self):
+        msg = QMessageBox()
+        msg.setWindowTitle("Instructions")
+        msg.setText("How to filter:\n" +
+                    "Select field to filter from the dropdown.\n\n" +
+                    "Text Fields: Enter substring to filter.\n" +
+                    "Numeric Fields: Enter range in form of min-max, you can leave either blank.\n")
+        msg.exec_()
+
+
     def cancel(self):
         self.close()
 
-    def loadEncounter(self):
-        print("Loading up encounter...")
 
     def addFilter(self):
         '''
@@ -594,20 +779,35 @@ class addEncounter(QWidget):
         self.ui.currentEncounterTable.removeRow(self.ui.currentEncounterTable.currentRow())
 
     def acceptEncounter(self):
-        if self.ui.encounterNameEdit.text() == "" or self.ui.encounterNameEdit.text() in self.parent.encounter_list:
+        if self.ui.encounterNameEdit.text() == "":
+            errorMessage("Encounter name blank!")
+            return
+        if self.ui.encounterNameEdit.text() in self.parent.encounter_list:
+            errorMessage("Encounter already exists!")
+            return
+        if ',' in self.ui.encounterNameEdit.text():
+            errorMessage("Commas not allowed in encounter name!")
             return
         # Write the encounter to the group file.
-        with open(self.parent.filename, 'a') as file:
-            # Write the header.
-            if not self.for_table:
+        if not self.for_table:
+            with open(self.parent.filename, 'a') as file:
+                # Write the header.
                 file.write("encounter:" + self.ui.encounterNameEdit.text() + '\n')
-            else:
+                for row in range(self.ui.currentEncounterTable.rowCount()):
+                    file.write('~' + self.ui.currentEncounterTable.item(row, 0).text())
+                    file.write(',')
+                    file.write(self.ui.currentEncounterTable.item(row, 1).text() + '\n')
+                file.write('\n')
+
+        # If for a table then write to a temporary file.
+        else:
+            with open("groups/~temp.csv", 'a') as file:
                 file.write("table_encounter:" + self.ui.encounterNameEdit.text() + '\n')
-            for row in range(self.ui.currentEncounterTable.rowCount()):
-                file.write('~' + self.ui.currentEncounterTable.item(row, 0).text())
-                file.write(',')
-                file.write(self.ui.currentEncounterTable.item(row, 1).text() + '\n')
-            file.write('\n')
+                for row in range(self.ui.currentEncounterTable.rowCount()):
+                    file.write('~' + self.ui.currentEncounterTable.item(row, 0).text())
+                    file.write(',')
+                    file.write(self.ui.currentEncounterTable.item(row, 1).text() + '\n')
+                file.write('\n')
 
         # Clear the current encounter table.
         if not self.for_table:
@@ -615,20 +815,13 @@ class addEncounter(QWidget):
             self.parent.ui.encounterList.addItem(QListWidgetItem(self.ui.encounterNameEdit.text()))
         else:
             self.tableRef.ui.tableWidget.insertRow(self.tableRef.ui.tableWidget.rowCount())
-            print("Creating: " + self.ui.encounterNameEdit.text())
             newItem = QTableWidgetItem(self.ui.encounterNameEdit.text())
             newItem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-            self.tableRef.ui.tableWidget.setItem(self.tableRef.ui.tableWidget.rowCount()-1, 0,
-                                                 QTableWidgetItem(self.ui.encounterNameEdit.text()))
+            self.tableRef.ui.tableWidget.setItem(self.tableRef.ui.tableWidget.rowCount()-1, 0, newItem)
         self.close()
 
 
 class newTemplate(QWidget):
-
-    # To Do:
-    #
-    # 1. Ensure that when a template is made an identical template does not already exist.
-    #
 
     def __init__(self, mainW):
         super(newTemplate, self).__init__()
@@ -667,6 +860,8 @@ class newTemplate(QWidget):
         templateName = self.ui.templateName.text()
         gameSystem = self.ui.gameSystem.text()
         fields = []
+        if templateName + "_" + gameSystem + ".csv" in os.listdir('templates'):
+            errorMessage("Template already exists!")
         for i in range(self.ui.fieldList.count()):
             fields.append(self.ui.fieldList.item(i).text())
         if templateName != "" and gameSystem != "" and len(fields) != 0:
@@ -788,6 +983,7 @@ class editLibrary(QWidget):
         # Set the initial row and column count.
         self.ui.tableWidget.setColumnCount(len(fields))
         self.ui.tableWidget.setRowCount(1)
+        self.ui.tableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
         # Set the headers for the table to the fields of the template.
         i = 0
@@ -835,6 +1031,7 @@ class editLibrary(QWidget):
                 else:
                     newItem = QTableWidgetItem()
                     newItem.setData(Qt.EditRole, QVariant(item))
+                newItem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
                 self.ui.tableWidget.setItem(row_count, getColumn(field_list, table_columns[i]), newItem)
                 i += 1
             row_count += 1
