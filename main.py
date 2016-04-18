@@ -228,6 +228,10 @@ class newGroup(QWidget):
 
     def createGroup(self):
         if self.ui.nameEdit.text() == "":
+            errorMessage("Group name required!")
+            return
+        if (self.ui.nameEdit.text() + ".group") in os.listdir("groups/"):
+            errorMessage("Group of that name already exists!")
             return
         filename = 'groups/' + self.ui.nameEdit.text() + ".group"
         with open(filename, 'w') as file:
@@ -641,6 +645,7 @@ class addEncounter(QWidget):
         self.parent = parent
         self.for_table = for_table
         self.tableRef = tableRef
+        self.rows_included = []
 
         # Contains all of the active filters as well as the rows they apply to.
         self.filter_dict = {}
@@ -702,7 +707,6 @@ class addEncounter(QWidget):
         filter_type = self.current_library.field_types[field_to_filter]
         column_of_interest = self.current_library.field_list.index(field_to_filter)
         # Filter current selection based on the entered string.
-        self.ui.filterList.addItem(field_to_filter + ": " + new_filter)
         if filter_type == "text":
             for i in range(self.ui.libraryTable.rowCount()):
                 if not self.ui.libraryTable.isRowHidden(i):
@@ -716,6 +720,12 @@ class addEncounter(QWidget):
             if re.match('\d*-?\d*', new_filter) is not None:
                 search_list = new_filter.split('-')
                 if len(search_list) > 1:
+                    if len(search_list) > 2:
+                        errorMessage("Invalid syntax for filter, please\nsee help button for usage.")
+                        return
+                    if not checkInt(search_list[0]) or not checkInt(search_list[1]):
+                        errorMessage("Invalid syntax for filter, please\nsee help button for usage.")
+                        return
                     if search_list[0] == '':
                         mini = 0
                     else:
@@ -732,6 +742,9 @@ class addEncounter(QWidget):
                                 self.filter_dict[new_filter].append(i)
                                 self.ui.libraryTable.setRowHidden(i, True)
                 else:
+                    if not checkInt(new_filter):
+                        errorMessage("Invalid syntax for filter, please\nsee help button for usage.")
+                        return
                     for i in range(self.ui.libraryTable.rowCount()):
                         if not self.ui.libraryTable.isRowHidden(i):
                             # Make the cell an int.
@@ -739,6 +752,10 @@ class addEncounter(QWidget):
                             if not current_field == int(new_filter):
                                 self.filter_dict[new_filter].append(i)
                                 self.ui.libraryTable.setRowHidden(i, True)
+                self.ui.filterList.addItem(field_to_filter + ": " + new_filter)
+
+            else:
+                errorMessage("Invalid syntax for filter, please\nsee help button for usage.")
 
     def removeFilter(self):
         if self.ui.filterList.currentItem() is None:
@@ -764,11 +781,18 @@ class addEncounter(QWidget):
             self.ui.libraryTable.setRowHidden(row, False)
 
     def addToEncounter(self):
+        current_row = self.ui.currentEncounterTable.rowCount()
+        try:
+            selected_row = self.ui.libraryTable.selectedIndexes()[0].row()
+        except IndexError:
+            return
+        if selected_row in self.rows_included:
+            errorMessage("The entry is already in the encounter, feel free\nto change the quantity.")
+            return
+        self.rows_included.append(selected_row)
         self.ui.currentEncounterTable.insertRow(self.ui.currentEncounterTable.rowCount())
-
-        current_row = self.ui.currentEncounterTable.rowCount()-1
-        selected_row = self.ui.libraryTable.selectedIndexes()[0].row()
         for i in range(self.ui.libraryTable.columnCount()):
+
             newItem = QTableWidgetItem(self.ui.libraryTable.item(selected_row, i).text())
             newItem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             self.ui.currentEncounterTable.setItem(current_row, i+1, newItem)
@@ -787,6 +811,9 @@ class addEncounter(QWidget):
             return
         if ',' in self.ui.encounterNameEdit.text():
             errorMessage("Commas not allowed in encounter name!")
+            return
+        if self.ui.currentEncounterTable.rowCount() == 0:
+            errorMessage("Must have at least one entry!")
             return
         # Write the encounter to the group file.
         if not self.for_table:
@@ -830,6 +857,8 @@ class newTemplate(QWidget):
         self.ui.setupUi(self)
         self.mainW = mainW
 
+        self.field_list = []
+
         self.ui.returnButton.clicked.connect(self.returnToMain)
         self.ui.addFieldButton.clicked.connect(self.addField)
         self.ui.createTemplateButton.clicked.connect(self.createTemplate)
@@ -849,6 +878,10 @@ class newTemplate(QWidget):
         # As long as it is not blank, add it to the list and clear the field.
         if text != "" and (self.ui.textButton.isChecked() or self.ui.intButton.isChecked()):
             text_to_add = self.ui.fieldToAdd.text()
+            if text_to_add in self.field_list:
+                errorMessage("Field already exists with that name!")
+                return
+            self.field_list.append(text_to_add)
             if isItText:
                 text_to_add += " (text)"
             else:
@@ -859,6 +892,15 @@ class newTemplate(QWidget):
     def createTemplate(self):
         templateName = self.ui.templateName.text()
         gameSystem = self.ui.gameSystem.text()
+        if templateName == "":
+            errorMessage("Template name required!")
+            return
+        if gameSystem == "":
+            errorMessage("Game System required!")
+            return
+        if self.ui.fieldList.count() < 1:
+            errorMessage("At least one field required!")
+            return
         fields = []
         if templateName + "_" + gameSystem + ".csv" in os.listdir('templates'):
             errorMessage("Template already exists!")
@@ -982,7 +1024,7 @@ class editLibrary(QWidget):
 
         # Set the initial row and column count.
         self.ui.tableWidget.setColumnCount(len(fields))
-        self.ui.tableWidget.setRowCount(1)
+        self.ui.tableWidget.setRowCount(0)
         self.ui.tableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
         # Set the headers for the table to the fields of the template.
@@ -1123,6 +1165,10 @@ class newEntry(QWidget):
             value = self.formLayout.itemAt(i, 1).widget().text()
             type = self.fields[field]
             if type == "integer" and not checkInt(value):
+                errorMessage(field + " must be an integer!")
+                return
+            if type == "text" and value == "":
+                errorMessage(field + " may not be blank!")
                 return
             submitDict[field] = value
             types[value] = type
