@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file './mainWindow.ui'
 #
-# Created by: PyQt5 UI code generator 5.4.1
+# Created by: PyQt5 UI code generator 5.5.1
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -70,7 +70,7 @@ class Ui_MainWindow(object):
         self.verticalLayout.addLayout(self.gridLayout)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 700, 26))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 700, 21))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -84,7 +84,7 @@ class Ui_MainWindow(object):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Dungeon Journal"))
         self.label.setText(_translate("MainWindow", "Dungeon Journal"))
-        self.createTemplateButton.setText(_translate("MainWindow", "Create Template"))
+        self.createTemplateButton.setText(_translate("MainWindow", "Create Template/Library"))
         self.quitButton.setText(_translate("MainWindow", "Quit"))
         self.editLibraryButton.setText(_translate("MainWindow", "Edit Library"))
         self.playMenuButton.setText(_translate("MainWindow", "Play/Create Groups"))

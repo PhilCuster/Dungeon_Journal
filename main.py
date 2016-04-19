@@ -1061,25 +1061,25 @@ class editLibrary(QWidget):
         for item in c:
             table_columns.append(item[1])
 
+        for item in field_list:
+            true_columns[cleanse(item)] = item
+
         # For each row of the table add it it to the table widget.
         row_count = 0
         for row in c.execute('''SELECT * FROM ''' + table_name):
             i = 0
             self.ui.tableWidget.setRowCount(row_count + 1)
             for item in row:
-                if fields[table_columns[i]] == "integer":
+                if fields[true_columns[table_columns[i]]] == "integer":
                     newItem = NumericTableWidgetItem()
                     newItem.setData(Qt.EditRole, QVariant(item))
                 else:
                     newItem = QTableWidgetItem()
                     newItem.setData(Qt.EditRole, QVariant(item))
                 newItem.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-                self.ui.tableWidget.setItem(row_count, getColumn(field_list, table_columns[i]), newItem)
+                self.ui.tableWidget.setItem(row_count, getColumn(field_list, true_columns[table_columns[i]]), newItem)
                 i += 1
             row_count += 1
-
-        for item in field_list:
-            true_columns[cleanse(item)] = item
 
         conn.commit()
         conn.close()
