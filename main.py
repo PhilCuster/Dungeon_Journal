@@ -709,12 +709,12 @@ class addEncounter(QWidget):
         # Filter current selection based on the entered string.
         if filter_type == "text":
             for i in range(self.ui.libraryTable.rowCount()):
-                if not self.ui.libraryTable.isRowHidden(i):
+#                if not self.ui.libraryTable.isRowHidden(i):
                     # Make the cell lowercase.
-                    current_field = self.ui.libraryTable.item(i, column_of_interest).text().lower()
-                    if new_filter.lower() not in current_field:
-                        self.filter_dict[new_filter].append(i)
-                        self.ui.libraryTable.setRowHidden(i, True)
+                current_field = self.ui.libraryTable.item(i, column_of_interest).text().lower()
+                if new_filter.lower() not in current_field:
+                    self.filter_dict[new_filter].append(i)
+                    self.ui.libraryTable.setRowHidden(i, True)
 
         else:
             if re.match('\d*-?\d*', new_filter) is not None:
@@ -737,28 +737,30 @@ class addEncounter(QWidget):
                         errorMessage("Invalid syntax for filter, please\nsee help button for usage.")
                         return
                     for i in range(self.ui.libraryTable.rowCount()):
-                        if not self.ui.libraryTable.isRowHidden(i):
+#                        if not self.ui.libraryTable.isRowHidden(i):
                             # Make the cell an int.
-                            current_field = int(self.ui.libraryTable.item(i, column_of_interest).text())
-                            if not mini <= current_field <= maxi:
-                                self.filter_dict[new_filter].append(i)
-                                self.ui.libraryTable.setRowHidden(i, True)
+                        current_field = int(self.ui.libraryTable.item(i, column_of_interest).text())
+                        if not mini <= current_field <= maxi:
+                            self.filter_dict[new_filter].append(i)
+                            self.ui.libraryTable.setRowHidden(i, True)
+
                 else:
                     if not checkInt(new_filter):
                         errorMessage("Invalid syntax for filter, please\nsee help button for usage.")
                         return
                     for i in range(self.ui.libraryTable.rowCount()):
-                        if not self.ui.libraryTable.isRowHidden(i):
-                            # Make the cell an int.
-                            current_field = int(self.ui.libraryTable.item(i, column_of_interest).text())
-                            if not current_field == int(new_filter):
-                                self.filter_dict[new_filter].append(i)
-                                self.ui.libraryTable.setRowHidden(i, True)
+               #        if not self.ui.libraryTable.isRowHidden(i):
+                        # Make the cell an int.
+                        current_field = int(self.ui.libraryTable.item(i, column_of_interest).text())
+                        if not current_field == int(new_filter):
+                            self.filter_dict[new_filter].append(i)
+                            self.ui.libraryTable.setRowHidden(i, True)
 
             else:
                 errorMessage("Invalid syntax for filter, please\nsee help button for usage.")
 
         self.ui.filterList.addItem(field_to_filter + ": " + new_filter)
+        print(self.filter_dict)
 
     def removeFilter(self):
         if self.ui.filterList.currentItem() is None:
@@ -770,17 +772,18 @@ class addEncounter(QWidget):
         self.ui.filterList.takeItem(self.ui.filterList.currentRow())
 
         rows_filtered = self.filter_dict[filter_to_remove]
+        remove_rows = list(rows_filtered)
         for item in rows_filtered:
             for key in self.filter_dict:
                 if key == filter_to_remove:
                     continue
                 if item in self.filter_dict[key]:
-                    rows_filtered.remove(item)
+                    remove_rows.remove(item)
                     break
 
         self.filter_dict.pop(filter_to_remove, None)
 
-        for row in rows_filtered:
+        for row in remove_rows:
             self.ui.libraryTable.setRowHidden(row, False)
 
     def addToEncounter(self):
