@@ -721,9 +721,7 @@ class addEncounter(QWidget):
                 search_list = new_filter.split('-')
                 if len(search_list) > 1:
                     if len(search_list) > 2:
-                        errorMessage("Invalid syntax for filter, please\nsee help button for usage.")
-                        return
-                    if not checkInt(search_list[0]) or not checkInt(search_list[1]):
+                        print(1)
                         errorMessage("Invalid syntax for filter, please\nsee help button for usage.")
                         return
                     if search_list[0] == '':
@@ -734,6 +732,10 @@ class addEncounter(QWidget):
                         maxi = sys.maxsize
                     else:
                         maxi = int(search_list[1])
+                    if not checkInt(mini) or not checkInt(maxi):
+                        print(2)
+                        errorMessage("Invalid syntax for filter, please\nsee help button for usage.")
+                        return
                     for i in range(self.ui.libraryTable.rowCount()):
                         if not self.ui.libraryTable.isRowHidden(i):
                             # Make the cell an int.
@@ -752,10 +754,11 @@ class addEncounter(QWidget):
                             if not current_field == int(new_filter):
                                 self.filter_dict[new_filter].append(i)
                                 self.ui.libraryTable.setRowHidden(i, True)
-                self.ui.filterList.addItem(field_to_filter + ": " + new_filter)
 
             else:
                 errorMessage("Invalid syntax for filter, please\nsee help button for usage.")
+
+        self.ui.filterList.addItem(field_to_filter + ": " + new_filter)
 
     def removeFilter(self):
         if self.ui.filterList.currentItem() is None:
